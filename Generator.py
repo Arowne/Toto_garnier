@@ -22,6 +22,9 @@ class GeneratePlan():
         self.existing_images = []
         self.layout_list = []
         self.layout_type = []
+        os.system('touch ./GENERATED/foo && rm ./GENERATED/*')
+        os.system('touch ./web/html/toto-landing/models/svg/white-output/foo && rm ./web/html/toto-landing/models/svg/white-output/*')
+        os.system('touch ./web/html/toto-landing/models/svg/colored-output/foo && rm ./web/html/toto-landing/models/svg/colored-output/*')
     
     def create_space_layers(self):
 
@@ -77,7 +80,6 @@ class GeneratePlan():
 "                                   \|/  `:''\n"
         )
 
-        print(house)
         bar = [
             "[BUILD                ]",
             "[ BUILD               ]",
@@ -98,17 +100,16 @@ class GeneratePlan():
             "[                BUILD]",
             "[                 BUIL]",
         ]
-
-        os.system('touch ./GENERATED/foo && rm ./GENERATED/*')
-
+        
+        print(house)
         for image in image_names:
             for image in image_names:
                 print(bar[index % len(bar)], end="\r")
                 index += 1
-                self.create_plan(max_width, max_height)
+                self.create_plan(max_width, max_height, index)
         print("\n", end="\r")      
         print(str(len(self.existing_images)) + " plans generated.")
-        os.system('http-server "./web/html/" --proxy http://localhost:8080')
+        os.system('http-server "./web/" --proxy http://localhost:8080')
 
     def get_max_width (self):
 
@@ -164,9 +165,10 @@ class GeneratePlan():
         return max_height
 
 
-    def create_plan(self, max_width, max_height):
+    def create_plan(self, max_width, max_height, index):
         
-        result = Image.new('RGB', (1000, 1000), color=(240, 240,0))
+        image_index = index
+        result = Image.new('RGB', (500, 500), color=(240, 240,0))
         
         images_name = self.layout_list
         images_name = shuffle(images_name)
@@ -204,13 +206,18 @@ class GeneratePlan():
         data = np.array(result)
         data[np.where((data>=[240, 240, 0]).all(axis=2))] = (255, 255, 255)
         
-        data_list = data.tolist()
-        if list(data_list) not in self.existing_images:
-            self.existing_images.append(list(data_list))
+        if image_index % 2 == 0:
+            data[np.where((data>=[240, 240, 240]).all(axis=2))] = (249, 250, 255)
 
+        data_list = data.tolist()
+
+        if list(data_list) not in self.existing_images:
+
+            self.existing_images.append(list(data_list))
             result = Image.fromarray(data, mode='RGB')
             
-            img_path = "./GENERATED/" + str(uuid.uuid1()) + '.jpg'
+            image_id = str(image_index)
+            img_path = "./GENERATED/" + image_id + '.jpg'
             result.save(os.path.expanduser(img_path))
             data = np.array(result)
 
@@ -223,121 +230,10 @@ class GeneratePlan():
             data = 255 - data
             result = Image.fromarray(data, mode='RGB')
             
-
             result.save(os.path.expanduser('white-output.png'))
-            os.system('convert -channel GRAY white-output.png output.pgm && potrace -s output.pgm && mv output.svg  ./web/html/models/svg/white-output.svg')
-            os.system('mv ' + img_path +  ' ./web/html/models/svg/colored-output.png')
+            os.system('convert -channel GRAY white-output.png output.pgm && potrace -s output.pgm && mv output.svg  ./web/html/toto-landing/models/svg/white-output/' + image_id  + '.svg')
+            os.system('cp ' + img_path +  ' ./web/html/toto-landing/models/svg/colored-output/' + image_id + '.jpg')
 
-
-    def schema_one(self, total_height, living_room_w, living_room_h, result, number_of_stage):
-        image_names = self.layout_list
-        image_type = self.layout_type
-        
-        stage_index = 0
-        total_w = -50
-
-        for index, file in enumerate(image_names):
-            
-            # Living room path
-            path = os.path.expanduser(image_names[0])
-            img = Image.open(path)
-            w, living_room_h = img.size
-            room_base = int(total_height/2 - living_room_h/2) + living_room_h
-            room_base_negative = int(total_height/2 - living_room_h/2) - living_room_h
-
-            room_base_negative = 0 - int(room_base)
-
-            path = os.path.expanduser(file)
-            img = Image.open(path)
-            w, h = img.size
-
-            if image_type[index] == 'living_room':
-                if number_of_stage >= 1:
-                    x = 0
-                    y = int(total_height/2 - h/2)
-                    room_base = y
-                else:
-                    x = 0
-                    y = 0
-                result.paste(img, (x, y, x + w, y + h))
-            else:
-
-                # Check if we add stage index for room
-                if total_w + w >= living_room_w:
-                    stage_index += stage_index + 1
-                
-                # Concat rooms
-                if total_w + w >= living_room_w:
-                    x = 0
-                    total_w = 0
-                else:
-                    x = total_w + w
-                    total_w = x
-                
-                print(stage_index)
-                if stage_index > 0:
-                    y = int(total_height/2) - living_room_h
-                else:
-                    y = room_base + h * stage_index
-
-                result.paste(img, (x, y, x + w, y + h))
-                
-        result.save(os.path.expanduser('new.png'))
-        data = np.array(result)
-
-        data[np.where((data>=[20, 20, 20]).all(axis=2))] = (255, 255, 255)
-        data[np.where((data>=[110, 0, 0]).all(axis=2))] = (255, 255, 255)
-        data[np.where((data>=[0, 110, 0]).all(axis=2))] = (255, 255, 255)
-        data[np.where((data>=[0, 0, 110]).all(axis=2))] = (255, 255, 255)
-        data[np.where((data>[10, 10, 10]).all(axis=2))] = (255, 255, 255)
-        data = 255 - data
-        data = 255 - data
-        result = Image.fromarray(data, mode='RGB')
-
-        result.save(os.path.expanduser('white-output.png'))
-        os.system('convert -channel GRAY white-output.png output.pgm && potrace -s output.pgm && mv output.svg  ./web/html/models/svg/white-output.svg')
-        os.system('mv new.png  ./web/html/models/svg/colored-output.png')
-
-
-    # def schema_one(self, total_height, living_room_w, living_room_h, result, number_of_stage):
-    #     image_names = self.layout_list
-    #     image_type = self.layout_type
-        
-    #     stage_index = 0
-    #     total_w = -50
-
-    #     for index, file in enumerate(image_names):
-
-    #         path = os.path.expanduser(file)
-    #         img = Image.open(path)
-    #         w, h = img.size
-
-    #         if image_type[index] == 'living_room':
-    #             if number_of_stage > 1:
-    #                 x = 0
-    #                 y = (living_room_h/2 - h/2)
-    #             else:
-    #                 x = 0
-    #                 y = 0
-    #             result.paste(img, (x, y, x + w, y + h))
-    #         else:
-
-    #             # Check if we add stage index for room
-    #             if total_w + w >= living_room_w:
-    #                 stage_index += 1
-                
-    #             # Concat rooms
-    #             if total_w + w >= living_room_w:
-    #                 x = 0
-    #                 total_w = 0
-    #             else:
-    #                 x = total_w + w
-    #                 total_w = x
-                
-                
-    #             y = 0 + living_room_h + h * stage_index
-
-    #             result.paste(img, (x, y, x + w, y + h))
 
 def text_to_list(hashtags):
     return hashtags.strip('[]').replace('\'', '').replace(' ', '').split(',')
